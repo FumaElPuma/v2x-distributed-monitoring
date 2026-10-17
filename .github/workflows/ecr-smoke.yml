@@ -1,0 +1,48 @@
+name: ECR Push Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ecr-push-check:
+    name: ECR push check
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Pull test image
+        run: docker pull alpine:3.20
+
+      - name: Tag test image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          docker tag alpine:3.20 \
+            $ECR_REGISTRY/$ECR_REPOSITORY:ci-smoke
+
+      - name: Push test image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          docker push \
+            $ECR_REGISTRY/$ECR_REPOSITORY:ci-smoke
+
+      - name: Verify image in ECR
+        run: |
+          aws ecr describe-images \
+            --repository-name ${{ vars.ECR_REPOSITORY }} \
+            --image-ids imageTag=ci-smoke \
+            --region ${{ vars.AWS_REGION }}
