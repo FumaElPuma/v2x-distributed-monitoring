@@ -26,3 +26,10 @@ jobs:
 
       - name: Run tests
         run: pytest
+
+      - name: Build V2X-SERVICE Docker image
+        run: |
+          docker build \
+            -f services/v2x-service/Dockerfile \
+            -t v2x-service:ci \
+            .
