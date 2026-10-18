@@ -86,3 +86,44 @@ jobs:
 
           docker push \
             $ECR_REGISTRY/$ECR_REPOSITORY:$RELEASE_TAG
+  deploy:
+    name: Deploy V2X-SERVICE to EC2
+    needs: tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Find the V2X-SERVICE instance
+        id: instance
+        run: |
+          IID=$(aws ec2 describe-instances \
+            --filters Name=tag:Role,Values=v2x-service Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          if [ -z "$IID" ] || [ "$IID" = "None" ]; then
+            echo "No running v2x-service instance (lab session off or instance stopped)"; exit 1
+          fi
+          echo "id=$IID" >> "$GITHUB_OUTPUT"
+
+      - name: Run deploy.sh on the instance through SSM
+        env:
+          IID: ${{ steps.instance.outputs.id }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          CMD=$(aws ssm send-command --document-name AWS-RunShellScript --instance-ids "$IID" \
+            --parameters "commands=[\"/opt/v2x/deploy.sh $IMAGE_TAG\"]" \
+            --query Command.CommandId --output text)
+          aws ssm wait command-executed --command-id "$CMD" --instance-id "$IID" || true
+          aws ssm get-command-invocation --command-id "$CMD" --instance-id "$IID" \
+            --query StandardOutputContent --output text
+          STATUS=$(aws ssm get-command-invocation --command-id "$CMD" --instance-id "$IID" \
+            --query Status --output text)
+          echo "SSM status: $STATUS"
+          test "$STATUS" = "Success"
