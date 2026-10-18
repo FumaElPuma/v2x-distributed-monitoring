@@ -1,0 +1,7 @@
+# Free-flowing traffic with no incidents: reference run for the experiments.
+name: baseline
+duration_s: 300
+vehicles: 5
+segment_length_m: 100
+rate_hz: { position: 1, rsu_density: 0.2, emergency: 2 }
+injections: []

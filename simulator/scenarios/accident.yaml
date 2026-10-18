@@ -1,0 +1,11 @@
+# 5 vehicles: veh-0001..0003 in rsu-1's zone (lane 0), veh-0004..0005 in rsu-2's zone (lane 1).
+# veh-0002 crashes at t = 60 s; veh-0001 behind it brakes hard (sudden-braking alert).
+name: accident
+duration_s: 300
+vehicles: 5
+segment_length_m: 100
+rate_hz: { position: 1, rsu_density: 0.2, emergency: 2 }
+injections:
+  - { t: 60,  kind: crash,     vehicle: veh-0002, severity: 3, until: 150 }
+  - { t: 120, kind: hazard,    segment: S07, hazard_type: oil, severity: 2, report_p: 0.5, until: 240 }
+  - { t: 180, kind: emergency, vehicle_class: ambulance, start: S04, route: [S04, S05, S06, S07] }
