@@ -1,6 +1,6 @@
 # V2X Distributed Monitoring
 
-## Architecture
+## Architecture (example of devops pipeline)
 
 ```text
 Simulator ──▶ SQS v2x-events ──▶ V2X-SERVICE (Docker on EC2) ──▶ DynamoDB
